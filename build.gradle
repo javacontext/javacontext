@@ -89,6 +89,7 @@ subprojects {
         errorProneJavacVersion = '9+181-r4173-1'
         findBugsJsr305Version = '3.0.2'
         grpcVersion = '1.28.0'
+        guavaVersion = '28.2-android'
         jmhVersion = '1.19'
 
         libraries = [
@@ -104,9 +105,10 @@ subprojects {
                 jsr305                  : "com.google.code.findbugs:jsr305:${findBugsJsr305Version}",
 
                 // Test dependencies.
-                junit                : 'junit:junit:4.12',
-                mockito              : 'org.mockito:mockito-core:2.28.2',
-                truth                : 'com.google.truth:truth:1.0.1',
+                guava_testlib        : "com.google.guava:guava-testlib:${guavaVersion}",
+                junit                : "junit:junit:4.12",
+                mockito              : "org.mockito:mockito-core:2.28.2",
+                truth                : "com.google.truth:truth:1.0.1",
         ]
     }
 
@@ -120,7 +122,7 @@ subprojects {
     jacoco { toolVersion = "0.8.2" }
 
     googleJavaFormat {
-        toolVersion = '1.8'
+        toolVersion = '1.7'
     }
 
     configurations {
@@ -137,7 +139,8 @@ subprojects {
                 libraries.errorprone_annotation,
                 libraries.jsr305
 
-        testImplementation libraries.junit,
+        testImplementation libraries.guava_testlib,
+                libraries.junit,
                 libraries.mockito,
                 libraries.truth
 
