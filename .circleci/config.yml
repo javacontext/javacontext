@@ -1,0 +1,57 @@
+version: 2
+
+build_task: &build_task
+  name: Build
+  command: ./gradlew clean assemble check --stacktrace
+verify_task: &verify_task
+  name: Verify Google Java Format
+  command: ./gradlew verGJF
+
+jobs:
+  java8:
+    environment:
+      # Configure the JVM and Gradle to avoid OOM errors
+      _JAVA_OPTIONS: "-Xmx1g"
+      GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.workers.max=2"
+    docker:
+      - image: circleci/openjdk:8-jdk
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - gradle-{{ checksum "build.gradle" }}
+      - run:
+          <<: *verify_task
+      - run:
+          <<: *build_task
+      - save_cache:
+          paths:
+            - ~/.gradle
+          key: gradle-{{ checksum "build.gradle" }}
+  java11:
+    environment:
+      # Configure the JVM and Gradle to avoid OOM errors
+      _JAVA_OPTIONS: "-Xmx3g"
+      GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.workers.max=2"
+    docker:
+      - image: circleci/openjdk:11.0.6-jdk-buster
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - java11-gradle-{{ checksum "build.gradle" }}
+      - run:
+          <<: *verify_task
+      - run:
+          <<: *build_task
+      - save_cache:
+          paths:
+            - ~/.gradle
+          key: java11-gradle-{{ checksum "build.gradle" }}
+
+workflows:
+  version: 2
+  build_and_test:
+    jobs:
+      - java8
+      - java11
