@@ -16,6 +16,7 @@
 
 package dev.javacontext.context;
 
+import dev.javacontext.context.PersistentHashArrayMappedTrie.Node;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicReference;
@@ -65,8 +66,6 @@ import javax.annotation.Nullable;
 /* @DoNotMock("Use ROOT for a non-null Context") // commented out to avoid dependencies  */
 public class Context {
   private static final Logger log = Logger.getLogger(Context.class.getName());
-  private static final PersistentHashArrayMappedTrie<Key<?>, Object> EMPTY_ENTRIES =
-      new PersistentHashArrayMappedTrie<>();
 
   // Long chains of contexts are suspicious and usually indicate a misuse of Context.
   // The threshold is arbitrarily chosen.
@@ -144,7 +143,7 @@ public class Context {
     return current;
   }
 
-  final PersistentHashArrayMappedTrie<Key<?>, Object> keyValueEntries;
+  @Nullable final Node<Key<?>, Object> keyValueEntries;
   // The number parents between this context and the root context.
   final int generation;
 
@@ -152,7 +151,7 @@ public class Context {
    * Construct a context that cannot be cancelled but will cascade cancellation from its parent if
    * it is cancellable.
    */
-  private Context(Context parent, PersistentHashArrayMappedTrie<Key<?>, Object> keyValueEntries) {
+  private Context(Context parent, Node<Key<?>, Object> keyValueEntries) {
     this.keyValueEntries = keyValueEntries;
     this.generation = parent.generation + 1;
     validateGeneration(generation);
@@ -160,7 +159,7 @@ public class Context {
 
   /** Construct for {@link #ROOT}. */
   private Context() {
-    this.keyValueEntries = EMPTY_ENTRIES;
+    this.keyValueEntries = null;
     this.generation = 0;
     validateGeneration(generation);
   }
@@ -190,21 +189,25 @@ public class Context {
    * of separating them. But if the items are unrelated, have separate keys for them.
    */
   public <V> Context withValue(Key<V> k1, V v1) {
-    PersistentHashArrayMappedTrie<Key<?>, Object> newKeyValueEntries = keyValueEntries.put(k1, v1);
+    Node<Key<?>, Object> newKeyValueEntries =
+        PersistentHashArrayMappedTrie.put(keyValueEntries, k1, v1);
     return new Context(this, newKeyValueEntries);
   }
 
   /** Create a new context with the given key value set. */
   public <V1, V2> Context withValues(Key<V1> k1, V1 v1, Key<V2> k2, V2 v2) {
-    PersistentHashArrayMappedTrie<Key<?>, Object> newKeyValueEntries =
-        keyValueEntries.put(k1, v1).put(k2, v2);
+    Node<Key<?>, Object> newKeyValueEntries =
+        PersistentHashArrayMappedTrie.put(keyValueEntries, k1, v1);
+    newKeyValueEntries = PersistentHashArrayMappedTrie.put(newKeyValueEntries, k2, v2);
     return new Context(this, newKeyValueEntries);
   }
 
   /** Create a new context with the given key value set. */
   public <V1, V2, V3> Context withValues(Key<V1> k1, V1 v1, Key<V2> k2, V2 v2, Key<V3> k3, V3 v3) {
-    PersistentHashArrayMappedTrie<Key<?>, Object> newKeyValueEntries =
-        keyValueEntries.put(k1, v1).put(k2, v2).put(k3, v3);
+    Node<Key<?>, Object> newKeyValueEntries =
+        PersistentHashArrayMappedTrie.put(keyValueEntries, k1, v1);
+    newKeyValueEntries = PersistentHashArrayMappedTrie.put(newKeyValueEntries, k2, v2);
+    newKeyValueEntries = PersistentHashArrayMappedTrie.put(newKeyValueEntries, k3, v3);
     return new Context(this, newKeyValueEntries);
   }
 
@@ -226,8 +229,11 @@ public class Context {
    */
   public <V1, V2, V3, V4> Context withValues(
       Key<V1> k1, V1 v1, Key<V2> k2, V2 v2, Key<V3> k3, V3 v3, Key<V4> k4, V4 v4) {
-    PersistentHashArrayMappedTrie<Key<?>, Object> newKeyValueEntries =
-        keyValueEntries.put(k1, v1).put(k2, v2).put(k3, v3).put(k4, v4);
+    Node<Key<?>, Object> newKeyValueEntries =
+        PersistentHashArrayMappedTrie.put(keyValueEntries, k1, v1);
+    newKeyValueEntries = PersistentHashArrayMappedTrie.put(newKeyValueEntries, k2, v2);
+    newKeyValueEntries = PersistentHashArrayMappedTrie.put(newKeyValueEntries, k3, v3);
+    newKeyValueEntries = PersistentHashArrayMappedTrie.put(newKeyValueEntries, k4, v4);
     return new Context(this, newKeyValueEntries);
   }
 
@@ -384,12 +390,6 @@ public class Context {
     return new CurrentContextExecutor();
   }
 
-  /** Lookup the value for a key in the context inheritance chain. */
-  @Nullable
-  Object lookup(Key<?> key) {
-    return keyValueEntries.get(key);
-  }
-
   /** Key for indexing values stored in a context. */
   public static final class Key<T> {
     private final String name;
@@ -412,7 +412,7 @@ public class Context {
     /** Get the value from the specified context for this key. */
     @SuppressWarnings("unchecked")
     public T get(Context context) {
-      T value = (T) context.lookup(this);
+      T value = (T) PersistentHashArrayMappedTrie.get(context.keyValueEntries, this);
       return value == null ? defaultValue : value;
     }
 
