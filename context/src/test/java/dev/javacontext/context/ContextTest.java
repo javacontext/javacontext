@@ -225,6 +225,14 @@ public class ContextTest {
     assertSame(current, observed);
     assertSame(current, Context.current());
 
+    base.run(runner);
+    assertSame(base, observed);
+    assertSame(current, Context.current());
+
+    current.run(runner);
+    assertSame(current, observed);
+    assertSame(current, Context.current());
+
     final TestError err = new TestError();
     try {
       base.wrap(
@@ -266,6 +274,14 @@ public class ContextTest {
     assertSame(current, Context.current());
 
     assertSame(ret, current.wrap(callable).call());
+    assertSame(current, observed);
+    assertSame(current, Context.current());
+
+    assertSame(ret, base.call(callable));
+    assertSame(base, observed);
+    assertSame(current, Context.current());
+
+    assertSame(ret, current.call(callable));
     assertSame(current, observed);
     assertSame(current, Context.current());
 
@@ -496,9 +512,10 @@ public class ContextTest {
       Context ctx = Context.current();
       for (int i = 0; i < Context.CONTEXT_DEPTH_WARN_THRESH; i++) {
         assertNull(logRef.get());
-        ctx = ctx.fork();
+        ctx = ctx.withValue(PET, "tiger");
       }
-      ctx.fork();
+      ctx = ctx.withValue(PET, "lion");
+      assertEquals("lion", PET.get(ctx));
       assertNotNull(logRef.get());
       assertNotNull(logRef.get().getThrown());
       assertEquals(Level.SEVERE, logRef.get().getLevel());

@@ -65,7 +65,6 @@ import javax.annotation.Nullable;
 /* @DoNotMock("Use ROOT for a non-null Context") // commented out to avoid dependencies  */
 public class Context {
   private static final Logger log = Logger.getLogger(Context.class.getName());
-
   private static final PersistentHashArrayMappedTrie<Key<?>, Object> EMPTY_ENTRIES =
       new PersistentHashArrayMappedTrie<>();
 
@@ -80,7 +79,7 @@ public class Context {
    * <p>Never assume this is the default context for new threads, because {@link Storage} may define
    * a default context that is different from ROOT.
    */
-  public static final Context ROOT = new Context(null, EMPTY_ENTRIES);
+  public static final Context ROOT = new Context();
 
   // VisibleForTesting
   static Storage storage() {
@@ -155,7 +154,14 @@ public class Context {
    */
   private Context(Context parent, PersistentHashArrayMappedTrie<Key<?>, Object> keyValueEntries) {
     this.keyValueEntries = keyValueEntries;
-    this.generation = parent == null ? 0 : parent.generation + 1;
+    this.generation = parent.generation + 1;
+    validateGeneration(generation);
+  }
+
+  /** Construct for {@link #ROOT}. */
+  private Context() {
+    this.keyValueEntries = EMPTY_ENTRIES;
+    this.generation = 0;
     validateGeneration(generation);
   }
 
@@ -171,7 +177,7 @@ public class Context {
    *   });
    * </pre>
    *
-   * <p>Note that multiple calls to {@link #withValue} can be chained together. That is,
+   * <p>Note that multiple calls to {@code #withValue} can be chained together. That is,
    *
    * <pre>
    * context.withValues(K1, V1, K2, V2);
@@ -399,7 +405,6 @@ public class Context {
     }
 
     /** Get the value from the {@link #current()} context for this key. */
-    @SuppressWarnings("unchecked")
     public T get() {
       return get(Context.current());
     }
@@ -492,10 +497,5 @@ public class Context {
      *     caution note.
      */
     public abstract Context current();
-  }
-
-  /** Creates a new context which propagates the values of this context. */
-  Context fork() {
-    return new Context(this, keyValueEntries);
   }
 }
