@@ -28,61 +28,47 @@ import javax.annotation.Nullable;
  * <p>Inspired by popcnt-based compression seen in Ideal Hash Trees, Phil Bagwell (2000). The rest
  * of the implementation is ignorant of/ignores the paper.
  */
-final class PersistentHashArrayMappedTrie<K, V> {
-  private final Node<K, V> root;
+final class PersistentHashArrayMappedTrie {
 
-  PersistentHashArrayMappedTrie() {
-    this(null);
-  }
-
-  private PersistentHashArrayMappedTrie(Node<K, V> root) {
-    this.root = root;
-  }
-
-  public int size() {
-    if (root == null) {
-      return 0;
-    }
-    return root.size();
-  }
+  private PersistentHashArrayMappedTrie() {}
 
   /** Returns the value with the specified key, or {@code null} if it does not exist. */
   @Nullable
-  public V get(K key) {
+  static <K, V> V get(Node<K, V> root, K key) {
     if (root == null) {
       return null;
     }
     return root.get(key, key.hashCode(), 0);
   }
 
-  /** Returns a new trie where the key is set to the specified value. */
-  public PersistentHashArrayMappedTrie<K, V> put(K key, V value) {
+  /** Returns a new root {@code Node} where the key is set to the specified value. */
+  static <K, V> Node<K, V> put(Node<K, V> root, K key, V value) {
     if (root == null) {
-      return new PersistentHashArrayMappedTrie<>(new Leaf<>(key, value));
+      return new Leaf<>(key, value);
     } else {
-      return new PersistentHashArrayMappedTrie<>(root.put(key, value, key.hashCode(), 0));
+      return root.put(key, value, key.hashCode(), 0);
     }
   }
 
   // Not actually annotated to avoid depending on guava
   // @VisibleForTesting
-  static final class Leaf<K, V> implements Node<K, V> {
+  static final class Leaf<K, V> extends Node<K, V> {
     private final K key;
     private final V value;
 
-    public Leaf(K key, V value) {
+    Leaf(K key, V value) {
       this.key = key;
       this.value = value;
     }
 
     @Override
-    public int size() {
+    int size() {
       return 1;
     }
 
     @Override
     @Nullable
-    public V get(K key, int hash, int bitsConsumed) {
+    V get(K key, int hash, int bitsConsumed) {
       if (this.key == key) {
         return value;
       } else {
@@ -91,7 +77,7 @@ final class PersistentHashArrayMappedTrie<K, V> {
     }
 
     @Override
-    public Node<K, V> put(K key, V value, int hash, int bitsConsumed) {
+    Node<K, V> put(K key, V value, int hash, int bitsConsumed) {
       int thisHash = this.key.hashCode();
       if (thisHash != hash) {
         // Insert
@@ -113,7 +99,7 @@ final class PersistentHashArrayMappedTrie<K, V> {
 
   // Not actually annotated to avoid depending on guava
   // @VisibleForTesting
-  static final class CollisionLeaf<K, V> implements Node<K, V> {
+  static final class CollisionLeaf<K, V> extends Node<K, V> {
     // All keys must have same hash, but not have the same reference
     private final K[] keys;
     private final V[] values;
@@ -133,13 +119,13 @@ final class PersistentHashArrayMappedTrie<K, V> {
     }
 
     @Override
-    public int size() {
+    int size() {
       return values.length;
     }
 
     @Override
     @Nullable
-    public V get(K key, int hash, int bitsConsumed) {
+    V get(K key, int hash, int bitsConsumed) {
       for (int i = 0; i < keys.length; i++) {
         if (keys[i] == key) {
           return values[i];
@@ -149,7 +135,7 @@ final class PersistentHashArrayMappedTrie<K, V> {
     }
 
     @Override
-    public Node<K, V> put(K key, V value, int hash, int bitsConsumed) {
+    Node<K, V> put(K key, V value, int hash, int bitsConsumed) {
       int thisHash = keys[0].hashCode();
       int keyIndex;
       if (thisHash != hash) {
@@ -195,13 +181,13 @@ final class PersistentHashArrayMappedTrie<K, V> {
 
   // Not actually annotated to avoid depending on guava
   // @VisibleForTesting
-  static final class CompressedIndex<K, V> implements Node<K, V> {
+  static final class CompressedIndex<K, V> extends Node<K, V> {
     private static final int BITS = 5;
     private static final int BITS_MASK = 0x1F;
 
-    final int bitmap;
     final Node<K, V>[] values;
     private final int size;
+    final int bitmap;
 
     private CompressedIndex(int bitmap, Node<K, V>[] values, int size) {
       this.bitmap = bitmap;
@@ -210,13 +196,13 @@ final class PersistentHashArrayMappedTrie<K, V> {
     }
 
     @Override
-    public int size() {
+    int size() {
       return size;
     }
 
     @Override
     @Nullable
-    public V get(K key, int hash, int bitsConsumed) {
+    V get(K key, int hash, int bitsConsumed) {
       int indexBit = indexBit(hash, bitsConsumed);
       if ((bitmap & indexBit) == 0) {
         return null;
@@ -226,7 +212,7 @@ final class PersistentHashArrayMappedTrie<K, V> {
     }
 
     @Override
-    public Node<K, V> put(K key, V value, int hash, int bitsConsumed) {
+    Node<K, V> put(K key, V value, int hash, int bitsConsumed) {
       int indexBit = indexBit(hash, bitsConsumed);
       int compressedIndex = compressedIndex(indexBit);
       if ((bitmap & indexBit) == 0) {
@@ -304,11 +290,11 @@ final class PersistentHashArrayMappedTrie<K, V> {
     }
   }
 
-  interface Node<K, V> {
-    V get(K key, int hash, int bitsConsumed);
+  abstract static class Node<K, V> {
+    abstract V get(K key, int hash, int bitsConsumed);
 
-    Node<K, V> put(K key, V value, int hash, int bitsConsumed);
+    abstract Node<K, V> put(K key, V value, int hash, int bitsConsumed);
 
-    int size();
+    abstract int size();
   }
 }
