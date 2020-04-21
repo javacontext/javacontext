@@ -283,11 +283,6 @@ public class Context {
     storage().detach(this, toAttach);
   }
 
-  // Visible for testing
-  boolean isCurrent() {
-    return current() == this;
-  }
-
   /**
    * Immediately run a {@link Runnable} with this context as the {@link #current} context.
    *

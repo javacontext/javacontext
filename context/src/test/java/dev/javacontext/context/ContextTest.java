@@ -17,7 +17,6 @@
 package dev.javacontext.context;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertNull;
@@ -103,7 +102,7 @@ public class ContextTest {
   @Test
   public void rootCanBeAttached() {
     Context toRestore2 = Context.ROOT.attach();
-    assertTrue(Context.ROOT.isCurrent());
+    assertSame(Context.ROOT, Context.current());
     Context.ROOT.detach(toRestore2);
   }
 
@@ -335,12 +334,12 @@ public class ContextTest {
     Context base = Context.current().withValue(COLOR, "blue");
     Context previous = base.attach();
     try {
-      assertTrue(base.isCurrent());
+      assertSame(base, Context.current());
       // Do something
     } finally {
       base.detach(previous);
     }
-    assertFalse(base.isCurrent());
+    assertNotSame(base, Context.current());
   }
 
   private static class QueuedExecutor implements Executor {
