@@ -147,10 +147,6 @@ public class Context {
   // The number parents between this context and the root context.
   final int generation;
 
-  /**
-   * Construct a context that cannot be cancelled but will cascade cancellation from its parent if
-   * it is cancellable.
-   */
   private Context(Context parent, Node<Key<?>, Object> keyValueEntries) {
     this.keyValueEntries = keyValueEntries;
     this.generation = parent.generation + 1;
